@@ -5,874 +5,1045 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#17212b">
-<title>Telegram Game — Memory</title>
-<style>
-:root{
-  --bg:#17212b;
-  --panel:#212e3a;
-  --panel2:#182533;
-  --hover:#2b3b4b;
-  --text:#f5f7fa;
-  --muted:#9eafbf;
-  --line:#30404e;
-  --blue:#3390ec;
-  --green:#35c875;
-  --red:#f05e68;
-}
-*{box-sizing:border-box}
-html,body{
-  width:100%;height:100%;margin:0;
-  font-family:Arial,"Helvetica Neue",sans-serif;
-  background:var(--bg);color:var(--text);
-}
-body{overflow:hidden}
-button,input{font:inherit}
-button{color:inherit;cursor:pointer}
-button:focus-visible,input:focus-visible{
-  outline:2px solid var(--blue);outline-offset:2px
-}
-button:disabled{cursor:default}
-[hidden]{display:none!important}
-svg{width:21px;height:21px;display:block;flex-shrink:0}
-.app{
-  position:relative;isolation:isolate;
-  width:100%;height:100%;height:100dvh;
-  overflow:hidden;
-  background-color:var(--bg);
-  background-image:var(--wallpaper,none);
-  background-size:cover;background-position:center;
-}
-.workspace{
-  position:absolute;inset:0;
-  overflow:auto;overscroll-behavior:contain;
-  padding:16px 12px 105px;
-  scrollbar-width:thin;
-  scrollbar-color:var(--line) transparent;
-}
-.game{
-  width:min(100%,540px);
-  margin:0 auto;
-}
-.game-head{
-  display:flex;align-items:center;justify-content:space-between;
-  gap:12px;margin:0 0 15px;
-}
-.game-title{font-size:19px;font-weight:600}
-.game-subtitle{font-size:12px;color:var(--muted);margin-top:5px}
-.round-btn{
-  display:grid;place-items:center;
-  width:42px;height:42px;flex-shrink:0;
-  border:0;border-radius:50%;background:var(--panel);
-}
-.round-btn:hover{background:var(--hover)}
-.dots{font-size:25px;letter-spacing:1px;line-height:1}
-.stats{
-  display:grid;grid-template-columns:repeat(3,minmax(0,1fr));
-  gap:8px;margin-bottom:15px;
-}
-.stat{
-  min-width:0;padding:11px 8px;text-align:center;
-  background:#212e3ad9;border:1px solid var(--line);
-  border-radius:12px;
-}
-.stat-number{font-size:19px;font-weight:600}
-.stat-label{font-size:11px;color:var(--muted);margin-top:5px}
-.game-tools{
-  display:flex;align-items:center;justify-content:space-between;
-  gap:8px;margin-bottom:12px;
-}
-.small-button{
-  min-height:36px;padding:8px 12px;
-  border:1px solid var(--line);border-radius:10px;
-  background:var(--panel);
-}
-.small-button:hover{background:var(--hover)}
-.memory-grid{
-  display:grid;grid-template-columns:repeat(4,minmax(0,1fr));
-  gap:9px;
-}
-.memory-card{
-  position:relative;aspect-ratio:0.83;
-  min-width:0;padding:0;overflow:hidden;
-  border:1px solid #405363;border-radius:12px;
-  background:linear-gradient(145deg,#253849,#1a2836);
-  transition:border-color .16s,background .16s,transform .16s;
-  perspective:600px;
-}
-.memory-card:hover:not(:disabled){border-color:#6687a0}
-.memory-card:active:not(:disabled){transform:scale(.97)}
-.card-inner{
-  position:absolute;inset:0;
-  display:grid;place-items:center;
-  transition:transform .24s;
-}
-.card-back{
-  display:grid;place-items:center;
-  width:39px;height:39px;border-radius:12px;
-  background:#ffffff08;color:#63839d;
-  font-size:25px;font-weight:300;
-}
-.card-front{
-  display:none;position:absolute;inset:0;
-  place-items:center;font-size:clamp(24px,7vw,40px);
-  background:#2a3c4d;
-}
-.memory-card.flipped .card-front,
-.memory-card.matched .card-front{display:grid}
-.memory-card.flipped .card-back,
-.memory-card.matched .card-back{display:none}
-.memory-card.matched{
-  background:#153d30;border:2px solid var(--green);
-  box-shadow:inset 0 0 0 1px #35c87530;
-}
-.memory-card.matched .card-front{background:#153d30}
-.memory-card.wrong{
-  background:#48262d;border:2px solid var(--red);
-  animation:shake .22s linear;
-}
-.memory-card.wrong .card-front{background:#48262d}
-@keyframes shake{
-  0%,100%{transform:translateX(0)}
-  30%{transform:translateX(-3px)}
-  70%{transform:translateX(3px)}
-}
-.game-status{
-  text-align:center;color:var(--muted);
-  font-size:12px;min-height:18px;margin:13px 0 0;
-}
-.composer{
-  position:absolute;z-index:20;
-  left:0;right:0;bottom:0;
-  display:flex;align-items:center;gap:5px;
-  min-height:65px;
-  padding:8px 10px calc(8px + env(safe-area-inset-bottom));
-  background:linear-gradient(to bottom,transparent 0%,var(--bg) 22%);
-}
-.composer-inner{
-  display:flex;align-items:center;gap:4px;
-  width:min(100%,760px);min-height:48px;
-  margin:0 auto;padding:4px;
-  border:1px solid var(--line);
-  border-radius:28px;
-  background:var(--panel);
-  box-shadow:0 2px 12px #00012;
-}
-.icon-btn{
-  display:grid;place-items:center;
-  width:39px;height:39px;min-width:39px;
-  border:0;border-radius:50%;
-  color:var(--muted);background:transparent;
-}
-.icon-btn:hover,.icon-btn.active{background:var(--hover);color:var(--text)}
-.message-input{
-  width:100%;min-width:0;height:38px;
-  padding:10px 5px;border:0;outline:0;
-  resize:none;overflow:hidden;
-  color:var(--text);background:transparent;
-  font-size:15px;
-}
-.message-input::placeholder{color:var(--muted)}
-.send-btn{color:var(--blue)}
-.send-btn:hover{color:#65b2ff}
+<title>Emoji Match — Telegram Game</title>
 
-/* Плавающие панели. Они не участвуют в потоке и не двигают игру. */
-.floating-panel{
-  position:absolute;z-index:30;
-  left:10px;right:10px;bottom:calc(73px + env(safe-area-inset-bottom));
-  width:auto;max-width:760px;margin:0 auto;
-  border:1px solid var(--line);border-radius:15px;
-  background:var(--panel);
-  box-shadow:0 12px 38px #0006;
-  overflow:hidden;
-  animation:panelIn .13s ease-out;
+<style>
+:root {
+    --bg: #17212b;
+    --panel: #202e3a;
+    --tile: #263746;
+    --text: #f5f7fa;
+    --muted: #91a2b1;
+    --blue: #3390ec;
+    --green: #35d49a;
+    --red: #ff596a;
+    --safe-top: env(safe-area-inset-top, 0px);
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
 }
-@keyframes panelIn{
-  from{opacity:0;transform:translateY(5px)}
-  to{opacity:1;transform:translateY(0)}
+
+* { box-sizing: border-box; }
+
+html, body {
+    margin: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background: var(--bg);
+    color: var(--text);
+    font-family: Arial, Helvetica, sans-serif;
+    -webkit-tap-highlight-color: transparent;
 }
-.panel-heading{
-  display:flex;align-items:center;justify-content:space-between;
-  gap:12px;padding:12px 14px;
-  border-bottom:1px solid var(--line);
+
+button, textarea { font: inherit; }
+button { color: inherit; }
+
+.app {
+    position: fixed;
+    inset: 0;
+    height: 100vh;
+    height: 100dvh;
+    overflow: hidden;
+    background:
+        radial-gradient(ellipse at 50% 40%, #2b4559 0%, transparent 65%),
+        var(--bg);
 }
-.panel-heading strong{font-size:14px;font-weight:600}
-.panel-close{
-  display:grid;place-items:center;width:30px;height:30px;
-  border:0;border-radius:50%;background:transparent;color:var(--muted);
+
+.workspace {
+    position: absolute;
+    inset: 0;
+    overflow-y: auto;
+    padding: calc(58px + var(--safe-top)) 14px
+             calc(140px + var(--safe-bottom));
+    scrollbar-width: thin;
 }
-.panel-close:hover{background:var(--hover);color:var(--text)}
-.extension-strip{
-  display:flex;gap:9px;overflow-x:auto;
-  padding:12px;
-  scrollbar-width:thin;scrollbar-color:var(--line) transparent;
-  overscroll-behavior-x:contain;
+
+.top-actions {
+    position: fixed;
+    z-index: 30;
+    top: calc(8px + var(--safe-top));
+    right: 12px;
 }
-.extension-tile{
-  display:flex;flex-direction:column;align-items:center;
-  justify-content:center;gap:8px;
-  width:90px;min-width:90px;height:87px;
-  padding:8px;border:1px solid var(--line);
-  border-radius:12px;background:var(--panel2);
-  color:var(--text);
+
+.icon-button {
+    width: 43px;
+    height: 43px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 0;
+    border-radius: 50%;
+    background: #263946;
+    cursor: pointer;
+    font-size: 23px;
 }
-.extension-tile:hover{background:var(--hover);border-color:#50687c}
-.extension-tile svg{width:25px;height:25px;color:var(--blue)}
-.extension-tile span{
-  font-size:11px;text-align:center;line-height:1.2;
-  overflow-wrap:anywhere;
+
+.game-header {
+    text-align: center;
+    margin: 0 auto;
 }
-.commands-hint{
-  padding:0 13px 11px;color:var(--muted);font-size:11px;
+
+.game-header h1 {
+    margin: 0 0 8px;
+    font-size: 23px;
 }
-.menu-panel{
-  position:absolute;z-index:40;
-  top:12px;right:12px;
-  width:min(300px,calc(100vw - 24px));
-  max-height:calc(100% - 24px);
-  overflow:auto;padding:7px;
-  border:1px solid var(--line);border-radius:15px;
-  background:var(--panel);box-shadow:0 12px 40px #0007;
+
+.game-header p {
+    margin: 0;
+    color: var(--muted);
+    font-size: 13px;
+    line-height: 1.5;
 }
-.menu-item{
-  display:flex;align-items:center;gap:12px;
-  width:100%;min-height:45px;padding:10px;
-  border:0;border-radius:9px;text-align:left;
-  background:transparent;color:var(--text);
+
+.stats {
+    width: min(100%, 420px);
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    margin: 18px auto 15px;
 }
-.menu-item svg{color:var(--muted)}
-.menu-item:hover{background:var(--hover)}
-.menu-divider{height:1px;background:var(--line);margin:6px 4px}
-.menu-label{padding:9px 10px 5px;font-size:10px;color:var(--muted);letter-spacing:.7px}
-.control-grid{
-  display:grid;grid-template-columns:repeat(4,minmax(0,1fr));
-  gap:8px;padding:12px;
+
+.stat {
+    padding: 10px 4px;
+    border: 1px solid #344b5b;
+    border-radius: 12px;
+    background: #1b2b38eF;
+    text-align: center;
 }
-.control-tile{
-  display:flex;flex-direction:column;align-items:center;
-  justify-content:center;gap:8px;min-height:76px;
-  padding:8px 3px;border:1px solid var(--line);
-  border-radius:11px;background:var(--panel2);
+
+.stat-value {
+    display: block;
+    margin-bottom: 4px;
+    font-size: 20px;
+    font-weight: 700;
 }
-.control-tile:hover{background:var(--hover)}
-.control-tile svg{color:var(--blue)}
-.control-tile span{font-size:10px;text-align:center;line-height:1.2}
-.overlay{
-  position:absolute;z-index:50;inset:0;
-  display:grid;place-items:center;padding:14px;
-  background:#0009;
+
+.stat-label {
+    display: block;
+    color: var(--muted);
+    font-size: 11px;
 }
-.modal{
-  width:min(100%,400px);max-height:85%;
-  overflow:auto;border:1px solid var(--line);
-  border-radius:15px;background:var(--panel);
-  box-shadow:0 15px 55px #0008;
+
+/* Игровое поле */
+.board {
+    width: min(100%, 420px);
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: clamp(7px, 2.2vw, 12px);
+    margin: 0 auto;
+    perspective: 1100px;
 }
-.modal-head{
-  display:flex;align-items:center;justify-content:space-between;
-  padding:14px;border-bottom:1px solid var(--line);
+
+.card {
+    position: relative;
+    min-width: 0;
+    aspect-ratio: 1;
+    padding: 0;
+    border: 0;
+    border-radius: 13px;
+    background: transparent;
+    cursor: pointer;
+    transform: translateZ(0);
+    transition: transform .2s ease;
+    -webkit-user-select: none;
+    user-select: none;
 }
-.modal-head strong{font-size:16px}
-.modal-body{padding:15px;line-height:1.6}
-.modal-actions{display:flex;justify-content:flex-end;gap:8px;padding:0 15px 15px}
-.field{
-  width:100%;padding:10px 12px;
-  border:1px solid var(--line);border-radius:9px;
-  background:var(--bg);color:var(--text);
+
+.card:active:not(:disabled) {
+    transform: scale(.96);
 }
-.field-label{display:block;color:var(--muted);font-size:12px;margin:12px 0 6px}
-.primary-button{
-  min-height:38px;padding:9px 14px;
-  border:0;border-radius:9px;background:var(--blue);color:white;
+
+.card-inner {
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    transform-style: preserve-3d;
+    transition: transform .38s cubic-bezier(.2,.75,.25,1.15);
 }
-.secondary-button{
-  min-height:38px;padding:9px 14px;
-  border:1px solid var(--line);border-radius:9px;
-  background:var(--panel2);
+
+.card.flipped .card-inner,
+.card.matched .card-inner {
+    transform: rotateY(180deg);
 }
-.setting-row{
-  display:flex;align-items:center;justify-content:space-between;
-  gap:12px;padding:10px 0;
+
+.card-face {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    border-radius: inherit;
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
 }
-.setting-row input[type=checkbox]{width:18px;height:18px;accent-color:var(--blue)}
-@media(min-width:650px){
-  .workspace{padding-top:22px}
-  .memory-grid{gap:12px}
-  .memory-card{aspect-ratio:1}
-  .composer{padding-left:18px;padding-right:18px}
+
+/* Исходный вид закрытой карточки */
+.card-back {
+    border: 1px solid #405b6e;
+    background:
+        linear-gradient(145deg, #30495b 0%, #263b4b 48%, #1e303e 100%);
+    box-shadow:
+        inset 0 1px 0 #ffffff13,
+        inset 0 -3px 0 #00000016,
+        0 3px 7px #00000018;
+    color: #82a8c1;
+    font-size: clamp(25px, 7vw, 36px);
+    font-weight: 300;
 }
-@media(max-width:370px){
-  .workspace{padding-left:8px;padding-right:8px}
-  .memory-grid{gap:6px}
-  .memory-card{border-radius:9px}
-  .composer{padding-left:5px;padding-right:5px}
-  .icon-btn{width:35px;min-width:35px}
-  .control-grid{gap:5px;padding:8px}
+
+.card-back::after {
+    content: "";
+    position: absolute;
+    inset: 5px;
+    border: 1px solid #ffffff08;
+    border-radius: 9px;
+    pointer-events: none;
+}
+
+.card-front {
+    transform: rotateY(180deg);
+    border: 2px solid #405b6b;
+    background:
+        radial-gradient(circle at 50% 35%, #425e70, #2a4050 72%);
+    box-shadow:
+        inset 0 1px 0 #ffffff13,
+        0 3px 8px #00000022;
+}
+
+.card-front img.emoji {
+    width: 65%;
+    height: 65%;
+    max-width: 68px;
+    max-height: 68px;
+    object-fit: contain;
+    image-rendering: auto;
+    filter: drop-shadow(0 3px 3px #0004);
+}
+
+/* Подсветка ошибочной пары */
+.card.wrong .card-front {
+    border-color: var(--red);
+    background:
+        radial-gradient(circle, #743744 0%, #4b2935 100%);
+    box-shadow:
+        0 0 7px #ff596a55,
+        0 0 20px #ff596a44,
+        inset 0 0 13px #ff596a25;
+    animation: wrongPulse .32s ease-in-out 2;
+}
+
+@keyframes wrongPulse {
+    0%, 100% { transform: rotateY(180deg) scale(1); }
+    50% { transform: rotateY(180deg) scale(.95); }
+}
+
+/* Совпавшая пара: зелёный свет и подпрыгивание */
+.card.matched {
+    z-index: 2;
+    animation: matchJump .62s cubic-bezier(.2,.8,.25,1.35);
+}
+
+.card.matched .card-front {
+    border-color: var(--green);
+    background:
+        radial-gradient(circle at 50% 35%, #247c63, #164638 78%);
+    box-shadow:
+        0 0 8px #35d49a88,
+        0 0 20px #35d49a44,
+        inset 0 0 13px #35d49a2a;
+    animation: matchGlow 1.5s ease-in-out infinite alternate;
+}
+
+.card.matched .card-front img.emoji {
+    filter: drop-shadow(0 0 5px #8bffd2aa);
+}
+
+@keyframes matchJump {
+    0%   { transform: translateY(0) scale(1); }
+    23%  { transform: translateY(-13px) scale(1.09); }
+    48%  { transform: translateY(0) scale(.98); }
+    70%  { transform: translateY(-5px) scale(1.03); }
+    100% { transform: translateY(0) scale(1); }
+}
+
+@keyframes matchGlow {
+    from {
+        box-shadow:
+            0 0 6px #35d49a55,
+            0 0 12px #35d49a22,
+            inset 0 0 8px #35d49a15;
+    }
+    to {
+        box-shadow:
+            0 0 12px #35d49aaa,
+            0 0 25px #35d49a55,
+            inset 0 0 16px #35d49a35;
+    }
+}
+
+.card:disabled { cursor: default; }
+
+.game-actions {
+    display: flex;
+    justify-content: center;
+    gap: 9px;
+    width: min(100%, 420px);
+    margin: 18px auto 0;
+}
+
+.action-button {
+    min-height: 42px;
+    padding: 0 15px;
+    border: 0;
+    border-radius: 10px;
+    background: var(--blue);
+    color: white;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.action-button.secondary {
+    border: 1px solid #3b5060;
+    background: #263946;
+}
+
+.result-message {
+    min-height: 22px;
+    margin: 12px auto;
+    color: var(--green);
+    text-align: center;
+    font-size: 13px;
+}
+
+/* Нижняя панель поверх игрового поля */
+.composer-area {
+    position: fixed;
+    z-index: 40;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    padding: 8px 10px calc(9px + var(--safe-bottom));
+    background: linear-gradient(to bottom, transparent, #17212be8 28%, #17212b 55%);
+}
+
+.composer {
+    display: flex;
+    align-items: flex-end;
+    gap: 5px;
+    width: min(100%, 720px);
+    min-height: 52px;
+    margin: 0 auto;
+    padding: 5px;
+    border: 1px solid #344957;
+    border-radius: 18px;
+    background: var(--panel);
+}
+
+.composer-button {
+    flex: 0 0 40px;
+    width: 40px;
+    height: 40px;
+    border: 0;
+    border-radius: 50%;
+    background: transparent;
+    cursor: pointer;
+    font-size: 22px;
+}
+
+.composer-button:hover { background: #30424f; }
+
+#messageInput {
+    flex: 1;
+    min-width: 0;
+    min-height: 40px;
+    max-height: 110px;
+    padding: 10px 5px;
+    resize: none;
+    border: 0;
+    outline: none;
+    background: transparent;
+    color: var(--text);
+    font-size: 15px;
+    line-height: 20px;
+}
+
+#messageInput::placeholder { color: #8b9daa; }
+
+.send-button {
+    background: var(--blue);
+    color: white;
+}
+
+/* Горизонтальная панель команд */
+.extension-panel {
+    position: absolute;
+    z-index: 50;
+    right: 10px;
+    bottom: calc(70px + var(--safe-bottom));
+    left: 10px;
+    width: min(calc(100% - 20px), 700px);
+    margin: 0 auto;
+    padding: 10px;
+    border: 1px solid #354b5a;
+    border-radius: 15px;
+    background: #1d2c38f7;
+    box-shadow: 0 10px 36px #0006;
+    backdrop-filter: blur(14px);
+}
+
+.extension-panel[hidden],
+.control-panel[hidden],
+.dropdown[hidden],
+.modal-backdrop[hidden] { display: none; }
+
+.panel-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 9px;
+    color: #c5d2dc;
+    font-size: 12px;
+}
+
+.close-panel {
+    width: 29px;
+    height: 29px;
+    border: 0;
+    border-radius: 50%;
+    background: #30434f;
+    cursor: pointer;
+}
+
+.extension-list {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    padding: 1px 1px 5px;
+    scrollbar-width: thin;
+}
+
+.extension {
+    flex: 0 0 88px;
+    min-height: 80px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    padding: 9px 5px;
+    border: 1px solid #344a59;
+    border-radius: 12px;
+    background: #263946;
+    cursor: pointer;
+    font-size: 11px;
+}
+
+.extension-icon { font-size: 28px; line-height: 1; }
+
+/* Вспомогательные меню */
+.control-panel {
+    position: absolute;
+    z-index: 51;
+    bottom: calc(70px + var(--safe-bottom));
+    left: 10px;
+    width: min(275px, calc(100vw - 20px));
+    padding: 8px;
+    border: 1px solid #354b5a;
+    border-radius: 15px;
+    background: #1d2c38f7;
+    box-shadow: 0 10px 36px #0006;
+}
+
+.control-item, .menu-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    min-height: 44px;
+    padding: 10px;
+    border: 0;
+    border-radius: 9px;
+    background: transparent;
+    cursor: pointer;
+    text-align: left;
+    font-size: 14px;
+}
+
+.control-item:hover, .menu-item:hover { background: #30434f; }
+.control-icon, .menu-icon { width: 28px; text-align: center; font-size: 22px; }
+
+.dropdown {
+    position: fixed;
+    z-index: 70;
+    top: calc(57px + var(--safe-top));
+    right: 12px;
+    width: 235px;
+    padding: 7px;
+    border: 1px solid #354b5a;
+    border-radius: 14px;
+    background: #202e3bf7;
+    box-shadow: 0 12px 35px #0006;
+    backdrop-filter: blur(14px);
+}
+
+.modal-backdrop {
+    position: fixed;
+    z-index: 100;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    background: #081019b8;
+    backdrop-filter: blur(4px);
+}
+
+.modal {
+    width: min(100%, 410px);
+    max-height: 80dvh;
+    overflow-y: auto;
+    padding: 21px;
+    border: 1px solid #394f5e;
+    border-radius: 17px;
+    background: #1e2c38;
+}
+
+.modal h2 { margin: 0 0 12px; font-size: 20px; }
+.modal p { color: #bdcbd5; font-size: 14px; line-height: 1.6; }
+
+.modal-close {
+    float: right;
+    width: 34px;
+    height: 34px;
+    border: 0;
+    border-radius: 50%;
+    background: #314451;
+    cursor: pointer;
+}
+
+.modal .action-button { width: 100%; margin-top: 10px; }
+
+@media (max-height: 650px) {
+    .workspace { padding-top: calc(50px + var(--safe-top)); }
+    .game-header h1 { font-size: 20px; }
+    .stats { margin: 10px auto; }
+    .stat { padding: 7px 4px; }
+    .card { border-radius: 9px; }
 }
 </style>
 </head>
+
 <body>
-<div class="app" id="app">
+<div class="app">
 
-<svg aria-hidden="true" style="position:absolute;width:0;height:0;overflow:hidden">
-<symbol id="i-arrows" viewBox="0 0 24 24"><path d="M4 8h15m-4-4 4 4-4 4M20 16H5m4-4-4 4 4 4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
-<symbol id="i-send" viewBox="0 0 24 24"><path d="m3 11 18-8-7.5 18-3-7L3 11Zm7.5 3L21 3" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></symbol>
-<symbol id="i-game" viewBox="0 0 24 24"><path d="M7 8h10a4 4 0 0 1 3.8 5.3l-1.3 4a2 2 0 0 1-3.2.9L13.5 16h-3l-2.8 2.2a2 2 0 0 1-3.2-.9l-1.3-4A4 4 0 0 1 7 8Z" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M8 10v4m-2-2h4m5-1h.1m2 3h.1" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></symbol>
-<symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.5" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M4.5 20c.5-4 3.2-6 7.5-6s7 2 7.5 6" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></symbol>
-<symbol id="i-users" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M3 20c0-3.3 2.1-5 6-5s6 1.7 6 5M16 5.5a3 3 0 0 1 0 5.8M18 15c2 .6 3 2.1 3 4.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
-<symbol id="i-message" viewBox="0 0 24 24"><path d="M20 11.5a7.5 7.5 0 0 1-8 7.5 9 9 0 0 1-3.5-.7L4 20l1.4-4A7.3 7.3 0 0 1 4 11.5 7.5 7.5 0 0 1 12 4a7.5 7.5 0 0 1 8 7.5Z" fill="none" stroke="currentColor" stroke-width="1.7"/></symbol>
-<symbol id="i-settings" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="m19 13.5 2-1.5-2-1.5-.5-2.1 1-2.3-2.5-1-1.8 1.5h-2.4L11 3 9 5l-2.4-.2-1.2 2.4.8 2-1 2L3 12.5l1.5 2.2-.2 2.2 2.3 1.1 2-.8 2 1 1.2 2.2 2.2-1.5 2.2.2 1.1-2.3-.8-2Z" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></symbol>
-<symbol id="i-trophy" viewBox="0 0 24 24"><path d="M8 4h8v5a4 4 0 0 1-8 0V4ZM8 6H4v2a4 4 0 0 0 4 4m8-6h4v2a4 4 0 0 1-4 4m-4 0v5m-4 3h8m-7-3h6" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></symbol>
-<symbol id="i-link" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.1 0l3-3A5 5 0 0 0 13 2.9l-1.7 1.7m2.7 6.4a5 5 0 0 0-7.1 0l-3 3A5 5 0 0 0 11 21.1l1.7-1.7" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></symbol>
-<symbol id="i-image" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="3" fill="none" stroke="currentColor" stroke-width="1.7"/><circle cx="8.5" cy="8.5" r="1.5" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="m4 17 5-5 4 4 3-3 4 5" fill="none" stroke="currentColor" stroke-width="1.7"/></symbol>
-<symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20 7v5h-5M4 17v-5h5m-4-2a7 7 0 0 1 12-3l3 5M4 12l3 5a7 7 0 0 0 12-3" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></symbol>
-<symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M12 11v5m0-8h.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
-<symbol id="i-star" viewBox="0 0 24 24"><path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2-5.6-3-5.6 3 1.1-6.2L3 9.6l6.2-.9L12 3Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></symbol>
-<symbol id="i-chat" viewBox="0 0 24 24"><path d="M4 5h16v12H9l-5 4V5Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></symbol>
-</svg>
+    <main class="workspace">
+        <header class="game-header">
+            <h1>Найди одинаковые</h1>
+            <p>Переворачивай карточки и находи пары.<br>
+            Совпадения подсвечиваются и подпрыгивают.</p>
+        </header>
 
-<main class="workspace" id="workspace">
-  <section class="game">
-    <header class="game-head">
-      <div>
-        <div class="game-title">Memory Game</div>
-        <div class="game-subtitle">Найди одинаковые карточки</div>
-      </div>
-      <button class="round-btn" id="topMenuButton" aria-label="Открыть меню" title="Меню">
-        <span class="dots">⋮</span>
-      </button>
-    </header>
+        <section class="stats">
+            <div class="stat">
+                <span class="stat-value" id="attempts">0</span>
+                <span class="stat-label">🎯 Попытки</span>
+            </div>
+            <div class="stat">
+                <span class="stat-value" id="pairsFound">0/8</span>
+                <span class="stat-label">💎 Пары</span>
+            </div>
+            <div class="stat">
+                <span class="stat-value" id="timer">00:00</span>
+                <span class="stat-label">⏱️ Время</span>
+            </div>
+        </section>
 
-    <div class="stats">
-      <div class="stat"><div class="stat-number" id="moves">0</div><div class="stat-label">Ходы</div></div>
-      <div class="stat"><div class="stat-number" id="pairs">0/8</div><div class="stat-label">Пары</div></div>
-      <div class="stat"><div class="stat-number" id="timer">00:00</div><div class="stat-label">Время</div></div>
+        <section class="board" id="board" aria-label="Игровые карточки"></section>
+
+        <div class="game-actions">
+            <button class="action-button" id="restartButton">🔄 Новая игра</button>
+            <button class="action-button secondary" id="shuffleButton">🎲 Перемешать</button>
+        </div>
+
+        <div class="result-message" id="resultMessage" aria-live="polite"></div>
+    </main>
+
+    <div class="top-actions">
+        <button class="icon-button" id="topMenuButton" aria-label="Меню">•••</button>
     </div>
 
-    <div class="game-tools">
-      <span class="game-subtitle" id="gameStatus">Открой две карточки</span>
-      <button class="small-button" id="restartButton">Новая игра ↻</button>
+    <nav class="dropdown" id="topMenu" hidden>
+        <button class="menu-item" data-action="shortcut"><span class="menu-icon">📲</span>Создать ярлык</button>
+        <button class="menu-item" data-action="about"><span class="menu-icon">ℹ️</span>Об игре</button>
+        <button class="menu-item" data-action="ratings"><span class="menu-icon">🏆</span>Рейтинги</button>
+        <button class="menu-item" data-action="settings"><span class="menu-icon">⚙️</span>Настройки</button>
+        <button class="menu-item" data-action="friends"><span class="menu-icon">👥</span>Друзья</button>
+        <button class="menu-item" data-action="chats"><span class="menu-icon">💬</span>Чаты</button>
+    </nav>
+
+    <footer class="composer-area">
+        <div class="composer">
+            <button class="composer-button" id="controlButton" title="Управление">🔀</button>
+            <textarea id="messageInput" rows="1" placeholder="Сообщение или /команда"></textarea>
+            <button class="composer-button send-button" id="sendButton" title="Отправить">➤</button>
+        </div>
+    </footer>
+
+    <section class="extension-panel" id="extensionPanel" hidden>
+        <div class="panel-heading">
+            <span>✨ Команды и расширения</span>
+            <button class="close-panel" id="closeExtensionPanel">✕</button>
+        </div>
+        <div class="extension-list">
+            <button class="extension" data-command="/ai_chat"><span class="extension-icon">🤖</span>AI-чат</button>
+            <button class="extension" data-command="/generate"><span class="extension-icon">🎨</span>Генерация</button>
+            <button class="extension" data-command="/card"><span class="extension-icon">🃏</span>Создать карточку</button>
+            <button class="extension" data-command="/requests"><span class="extension-icon">📨</span>Заявки</button>
+            <button class="extension" data-command="/ads"><span class="extension-icon">📢</span>Реклама</button>
+            <button class="extension" data-command="/game"><span class="extension-icon">🎮</span>Игра</button>
+        </div>
+    </section>
+
+    <section class="control-panel" id="controlPanel" hidden>
+        <button class="control-item" data-control="restart"><span class="control-icon">🔄</span>Начать новую игру</button>
+        <button class="control-item" data-control="shuffle"><span class="control-icon">🎲</span>Перемешать карточки</button>
+        <button class="control-item" data-control="extensions"><span class="control-icon">🧩</span>Открыть расширения</button>
+        <button class="control-item" data-control="about"><span class="control-icon">📖</span>Правила игры</button>
+    </section>
+
+    <div class="modal-backdrop" id="modalBackdrop" hidden>
+        <section class="modal" role="dialog" aria-modal="true">
+            <button class="modal-close" id="modalClose">✕</button>
+            <h2 id="modalTitle">Информация</h2>
+            <div id="modalContent"></div>
+            <button class="action-button" id="modalOk">Понятно</button>
+        </section>
     </div>
-
-    <div class="memory-grid" id="memoryGrid" aria-label="Игровые карточки"></div>
-    <div class="game-status" id="resultStatus"></div>
-  </section>
-</main>
-
-<!-- Команды / располагаются поверх игрового поля -->
-<section class="floating-panel" id="extensionsPanel" hidden>
-  <div class="panel-heading">
-    <strong>Расширения</strong>
-    <button class="panel-close" data-close="extensionsPanel" aria-label="Закрыть">×</button>
-  </div>
-  <div class="extension-strip">
-    <button class="extension-tile" data-command="/ai_chat">
-      <svg><use href="#i-message"/></svg><span>AI Chat</span>
-    </button>
-    <button class="extension-tile" data-command="/content">
-      <svg><use href="#i-image"/></svg><span>Контент</span>
-    </button>
-    <button class="extension-tile" data-command="/card">
-      <svg><use href="#i-game"/></svg><span>Карточка</span>
-    </button>
-    <button class="extension-tile" data-command="/requests">
-      <svg><use href="#i-users"/></svg><span>Заявки</span>
-    </button>
-    <button class="extension-tile" data-command="/ads">
-      <svg><use href="#i-star"/></svg><span>Реклама</span>
-    </button>
-    <button class="extension-tile" data-command="/game">
-      <svg><use href="#i-trophy"/></svg><span>Игры</span>
-    </button>
-    <button class="extension-tile" data-command="/chats">
-      <svg><use href="#i-chat"/></svg><span>Чаты</span>
-    </button>
-  </div>
-  <div class="commands-hint">Выберите расширение или введите команду вручную.</div>
-</section>
-
-<!-- Панель управления по кнопке со стрелками -->
-<section class="floating-panel" id="controlsPanel" hidden>
-  <div class="panel-heading">
-    <strong>Панель управления</strong>
-    <button class="panel-close" data-close="controlsPanel" aria-label="Закрыть">×</button>
-  </div>
-  <div class="control-grid">
-    <button class="control-tile" data-action="restart"><svg><use href="#i-refresh"/></svg><span>Перезапуск</span></button>
-    <button class="control-tile" data-action="shuffle"><svg><use href="#i-game"/></svg><span>Перемешать</span></button>
-    <button class="control-tile" data-action="rules"><svg><use href="#i-info"/></svg><span>Правила</span></button>
-    <button class="control-tile" data-action="settings"><svg><use href="#i-settings"/></svg><span>Настройки</span></button>
-  </div>
-</section>
-
-<!-- Меню трёх точек -->
-<nav class="menu-panel" id="topMenu" hidden>
-  <div class="menu-label">ПРИЛОЖЕНИЕ</div>
-  <button class="menu-item" data-menu="shortcut"><svg><use href="#i-link"/></svg><span>Создать ярлык</span></button>
-  <button class="menu-item" data-menu="about"><svg><use href="#i-info"/></svg><span>О игре</span></button>
-  <button class="menu-item" data-menu="ratings"><svg><use href="#i-trophy"/></svg><span>Рейтинги</span></button>
-  <button class="menu-item" data-menu="settings"><svg><use href="#i-settings"/></svg><span>Настройки</span></button>
-  <div class="menu-divider"></div>
-  <button class="menu-item" data-menu="friends"><svg><use href="#i-users"/></svg><span>Друзья</span></button>
-  <button class="menu-item" data-menu="chats"><svg><use href="#i-chat"/></svg><span>Чаты</span></button>
-</nav>
-
-<!-- Нижняя панель ввода поверх игры -->
-<footer class="composer">
-  <div class="composer-inner">
-    <button class="icon-btn" id="controlsButton" aria-label="Панель управления" title="Панель управления">
-      <svg><use href="#i-arrows"/></svg>
-    </button>
-    <textarea class="message-input" id="messageInput" rows="1" placeholder="Сообщение или /команда" aria-label="Ввод команды"></textarea>
-    <button class="icon-btn send-btn" id="sendButton" aria-label="Выполнить команду" title="Выполнить">
-      <svg><use href="#i-send"/></svg>
-    </button>
-  </div>
-</footer>
-
-<div class="overlay" id="modalOverlay" hidden>
-  <section class="modal" role="dialog" aria-modal="true">
-    <header class="modal-head">
-      <strong id="modalTitle">Информация</strong>
-      <button class="panel-close" id="modalClose" aria-label="Закрыть">×</button>
-    </header>
-    <div class="modal-body" id="modalBody"></div>
-    <div class="modal-actions" id="modalActions"></div>
-  </section>
 </div>
-</div>
+
+<!-- Twemoji: преобразует стандартные эмодзи в изображения -->
+<script src="https://cdn.jsdelivr.net/npm/@twemoji/api@15.1.0/dist/twemoji.min.js"></script>
 
 <script>
 "use strict";
 
-const $ = id => document.getElementById(id);
-const icons = ["◆","●","▲","★","♥","✦","⬟","☀"];
-const STORAGE_KEY = "memory_game_telegram_v1";
+/*
+ * Twemoji загружается из CDN.
+ * Для офлайн-работы библиотеку и изображения нужно скачать локально.
+ * Это библиотека эмодзи, а не официальный набор Telegram Premium.
+ */
+
+const SYMBOLS = ["🍎", "🚀", "🌙", "🎮", "🐱", "💎", "🌈", "⭐"];
+
+const board = document.getElementById("board");
+const attemptsElement = document.getElementById("attempts");
+const pairsFoundElement = document.getElementById("pairsFound");
+const timerElement = document.getElementById("timer");
+const resultMessage = document.getElementById("resultMessage");
 
 let cards = [];
 let firstCard = null;
 let secondCard = null;
-let lockBoard = false;
-let moves = 0;
-let foundPairs = 0;
-let seconds = 0;
+let isLocked = false;
+let attempts = 0;
+let pairsFound = 0;
+let startedAt = null;
 let timerInterval = null;
-let started = false;
 let mismatchTimeout = null;
+let gameFinished = false;
 
-function shuffle(array){
-  for(let i=array.length-1;i>0;i--){
-    const j=Math.floor(Math.random()*(i+1));
-    [array[i],array[j]]=[array[j],array[i]];
-  }
-  return array;
-}
-
-function loadBest(){
-  try{return Number(localStorage.getItem(STORAGE_KEY+"_best"))||0}
-  catch{return 0}
-}
-
-function saveBest(value){
-  try{localStorage.setItem(STORAGE_KEY+"_best",String(value))}
-  catch{}
-}
-
-function startTimer(){
-  if(started)return;
-  started=true;
-  timerInterval=setInterval(()=>{
-    seconds++;
-    updateStats();
-  },1000);
-}
-
-function stopTimer(){
-  clearInterval(timerInterval);
-  timerInterval=null;
-}
-
-function formatTime(value){
-  const m=String(Math.floor(value/60)).padStart(2,"0");
-  const s=String(value%60).padStart(2,"0");
-  return m+":"+s;
-}
-
-function updateStats(){
-  $("moves").textContent=moves;
-  $("pairs").textContent=foundPairs+"/8";
-  $("timer").textContent=formatTime(seconds);
-}
-
-function createGame(){
-  stopTimer();
-  clearTimeout(mismatchTimeout);
-  cards=[];
-  firstCard=null;
-  secondCard=null;
-  lockBoard=false;
-  moves=0;
-  foundPairs=0;
-  seconds=0;
-  started=false;
-  $("gameStatus").textContent="Открой две карточки";
-  $("resultStatus").textContent="";
-  updateStats();
-
-  const deck=shuffle([...icons,...icons].map((symbol,index)=>({
-    id:index,symbol,flipped:false,matched:false,wrong:false
-  })));
-  cards=deck;
-  const grid=$("memoryGrid");
-  grid.innerHTML="";
-
-  cards.forEach(card=>{
-    const button=document.createElement("button");
-    button.className="memory-card";
-    button.type="button";
-    button.dataset.id=card.id;
-    button.setAttribute("aria-label","Закрытая карточка");
-    button.innerHTML=`
-      <span class="card-inner">
-        <span class="card-back">?</span>
-        <span class="card-front">${card.symbol}</span>
-      </span>`;
-    button.addEventListener("click",()=>flipCard(card.id));
-    grid.appendChild(button);
-  });
-}
-
-function cardElement(id){
-  return $("memoryGrid").querySelector('[data-id="'+id+'"]');
-}
-
-function renderCard(card){
-  const element=cardElement(card.id);
-  if(!element)return;
-  element.classList.toggle("flipped",card.flipped);
-  element.classList.toggle("matched",card.matched);
-  element.classList.toggle("wrong",card.wrong);
-  element.disabled=card.matched||lockBoard;
-  element.setAttribute("aria-label",
-    card.matched?"Найденная пара":
-    card.flipped?"Открытая карточка":"Закрытая карточка");
-}
-
-function flipCard(id){
-  if(lockBoard)return;
-  const card=cards.find(item=>item.id===id);
-  if(!card||card.matched||card.flipped)return;
-
-  startTimer();
-  card.flipped=true;
-  card.wrong=false;
-  renderCard(card);
-
-  if(!firstCard){
-    firstCard=card;
-    return;
-  }
-
-  secondCard=card;
-  moves++;
-  updateStats();
-
-  if(firstCard.symbol===secondCard.symbol){
-    firstCard.matched=true;
-    secondCard.matched=true;
-    firstCard.flipped=true;
-    secondCard.flipped=true;
-    renderCard(firstCard);
-    renderCard(secondCard);
-
-    foundPairs++;
-    firstCard=null;
-    secondCard=null;
-    updateStats();
-
-    $("gameStatus").textContent="Пара найдена";
-    if(foundPairs===8)finishGame();
-    else $("gameStatus").textContent="Продолжай искать пары";
-    return;
-  }
-
-  // Несовпадение: красная подсветка, затем автоматический переворот.
-  lockBoard=true;
-  firstCard.wrong=true;
-  secondCard.wrong=true;
-  renderCard(firstCard);
-  renderCard(secondCard);
-  $("gameStatus").textContent="Не совпали";
-
-  mismatchTimeout=setTimeout(()=>{
-    firstCard.flipped=false;
-    secondCard.flipped=false;
-    firstCard.wrong=false;
-    secondCard.wrong=false;
-    renderCard(firstCard);
-    renderCard(secondCard);
-    firstCard=null;
-    secondCard=null;
-    lockBoard=false;
-    $("gameStatus").textContent="Попробуй ещё раз";
-  },850);
-}
-
-function finishGame(){
-  stopTimer();
-  const best=loadBest();
-  if(best===0||moves<best)saveBest(moves);
-  $("gameStatus").textContent="Все пары найдены";
-  $("resultStatus").textContent=
-    "Победа · "+moves+" ходов · "+formatTime(seconds);
-  $("gameStatus").style.color="var(--green)";
-}
-
-function resetGame(){
-  closePanels();
-  createGame();
-}
-
-function closePanels(){
-  $("extensionsPanel").hidden=true;
-  $("controlsPanel").hidden=true;
-  $("topMenu").hidden=true;
-  $("controlsButton").classList.remove("active");
-}
-
-function togglePanel(id){
-  const panel=$(id);
-  const wasOpen=!panel.hidden;
-  closePanels();
-  if(!wasOpen){
-    panel.hidden=false;
-    if(id==="controlsPanel")$("controlsButton").classList.add("active");
-  }
-}
-
-function openModal(title,body,actions=[]){
-  closePanels();
-  $("modalTitle").textContent=title;
-  $("modalBody").innerHTML=body;
-  $("modalActions").innerHTML="";
-  actions.forEach(action=>{
-    const button=document.createElement("button");
-    button.className=action.primary?"primary-button":"secondary-button";
-    button.textContent=action.label;
-    button.addEventListener("click",action.run);
-    $("modalActions").appendChild(button);
-  });
-  $("modalOverlay").hidden=false;
-}
-
-function closeModal(){
-  $("modalOverlay").hidden=true;
-}
-
-function showSettings(){
-  openModal("Настройки",`
-    <label class="field-label" for="accentColor">Цвет акцента</label>
-    <input class="field" type="color" id="accentColor" value="#3390ec">
-    <label class="field-label" for="backgroundColor">Цвет фона</label>
-    <input class="field" type="color" id="backgroundColor" value="#17212b">
-    <label class="field-label" for="wallpaperInput">Фоновое изображение</label>
-    <input class="field" type="file" id="wallpaperInput" accept="image/*">
-    <div class="setting-row">
-      <span>Показывать таймер</span>
-      <input type="checkbox" id="timerToggle" checked>
-    </div>
-  `,[
-    {label:"Сбросить фон",run:()=>{
-      $("app").style.removeProperty("--wallpaper");
-      document.documentElement.style.setProperty("--bg","#17212b");
-      document.documentElement.style.setProperty("--blue","#3390ec");
-      closeModal();
-    }},
-    {label:"Готово",primary:true,run:closeModal}
-  ]);
-
-  $("accentColor").addEventListener("input",e=>{
-    document.documentElement.style.setProperty("--blue",e.target.value);
-  });
-  $("backgroundColor").addEventListener("input",e=>{
-    document.documentElement.style.setProperty("--bg",e.target.value);
-  });
-  $("wallpaperInput").addEventListener("change",e=>{
-    const file=e.target.files[0];
-    if(!file||!file.type.startsWith("image/"))return;
-    if(file.size>3*1024*1024){
-      openModal("Изображение слишком большое",
-        "Выберите изображение размером до 3 МБ.",
-        [{label:"Закрыть",primary:true,run:closeModal}]);
-      return;
+function shuffleArray(array) {
+    for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
     }
-    const reader=new FileReader();
-    reader.onload=()=>{
-      $("app").style.setProperty("--wallpaper",`url("${reader.result}")`);
-    };
-    reader.readAsDataURL(file);
-  });
-  $("timerToggle").addEventListener("change",e=>{
-    $("timer").parentElement.hidden=!e.target.checked;
-  });
+    return array;
 }
 
-function runCommand(command){
-  const cmd=command.trim().toLowerCase();
-  closePanels();
-  if(!cmd)return;
-
-  const actions={
-    "/game":()=>resetGame(),
-    "/restart":()=>resetGame(),
-    "/shuffle":()=>resetGame(),
-    "/controls":()=>togglePanel("controlsPanel"),
-    "/settings":()=>showSettings(),
-    "/ai_chat":()=>openModal("AI Chat","Интерфейс AI Chat подготовлен для подключения модели.",[{label:"Закрыть",primary:true,run:closeModal}]),
-    "/content":()=>openModal("Генерация контента","Раздел для генерации текста, изображений и других материалов.",[{label:"Закрыть",primary:true,run:closeModal}]),
-    "/card":()=>openModal("Создание карточки","Раздел создания пользовательских карточек.",[{label:"Закрыть",primary:true,run:closeModal}]),
-    "/requests":()=>openModal("Заявки","Здесь можно разместить входящие заявки.",[{label:"Закрыть",primary:true,run:closeModal}]),
-    "/ads":()=>openModal("Реклама","Раздел рекламных размещений.",[{label:"Закрыть",primary:true,run:closeModal}]),
-    "/chats":()=>openModal("Чаты","Сетевые чаты требуют серверной части.",[{label:"Закрыть",primary:true,run:closeModal}])
-  };
-
-  if(actions[cmd]){
-    actions[cmd]();
-  }else{
-    openModal("Команда не найдена",
-      "Неизвестная команда: "+escapeHTML(command)+
-      "<br><br>Доступно: /game, /restart, /shuffle, /settings, /ai_chat, /content, /card, /requests, /ads, /chats.",
-      [{label:"Закрыть",primary:true,run:closeModal}]);
-  }
+function createCards() {
+    return shuffleArray(SYMBOLS.flatMap((symbol, pairId) => [
+        { id: pairId * 2, value: symbol, flipped: false, matched: false, wrong: false },
+        { id: pairId * 2 + 1, value: symbol, flipped: false, matched: false, wrong: false }
+    ]));
 }
 
-function escapeHTML(value){
-  return String(value).replace(/[&<>"']/g,ch=>({
-    "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
-  })[ch]);
+function renderEmojis(element) {
+    if (window.twemoji) {
+        twemoji.parse(element, {
+            folder: "svg",
+            ext: ".svg",
+            className: "emoji"
+        });
+    }
 }
 
-$("restartButton").addEventListener("click",resetGame);
-$("controlsButton").addEventListener("click",()=>togglePanel("controlsPanel"));
-$("topMenuButton").addEventListener("click",()=>togglePanel("topMenu"));
+function renderBoard() {
+    board.innerHTML = "";
 
-$("messageInput").addEventListener("input",()=>{
-  const value=$("messageInput").value;
-  if(value.trim()==="/"){
-    $("topMenu").hidden=true;
-    $("controlsPanel").hidden=true;
-    $("controlsButton").classList.remove("active");
-    $("extensionsPanel").hidden=false;
-  }else if(!value.trim().startsWith("/")){
-    $("extensionsPanel").hidden=true;
-  }
+    cards.forEach((card, index) => {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "card";
+
+        if (card.flipped) button.classList.add("flipped");
+        if (card.matched) button.classList.add("matched");
+        if (card.wrong) button.classList.add("wrong");
+
+        button.setAttribute("aria-label",
+            card.flipped || card.matched
+                ? "Карточка " + card.value
+                : "Закрытая карточка");
+
+        const inner = document.createElement("span");
+        inner.className = "card-inner";
+
+        const back = document.createElement("span");
+        back.className = "card-face card-back";
+        back.textContent = "?";
+
+        const front = document.createElement("span");
+        front.className = "card-face card-front";
+        front.textContent = card.value;
+
+        inner.append(back, front);
+        button.appendChild(inner);
+
+        // Конвертируем эмодзи в графические изображения.
+        renderEmojis(front);
+
+        button.disabled = card.matched || isLocked || card.flipped;
+        button.addEventListener("click", () => flipCard(index));
+
+        board.appendChild(button);
+    });
+}
+
+function startTimer() {
+    if (startedAt !== null) return;
+
+    startedAt = Date.now();
+    timerInterval = setInterval(() => {
+        const seconds = Math.floor((Date.now() - startedAt) / 1000);
+        timerElement.textContent =
+            String(Math.floor(seconds / 60)).padStart(2, "0") + ":" +
+            String(seconds % 60).padStart(2, "0");
+    }, 250);
+}
+
+function flipCard(index) {
+    const card = cards[index];
+
+    if (isLocked || gameFinished || card.flipped || card.matched) return;
+
+    startTimer();
+
+    card.flipped = true;
+    card.wrong = false;
+
+    if (firstCard === null) {
+        firstCard = card;
+        renderBoard();
+        return;
+    }
+
+    secondCard = card;
+    attempts++;
+    attemptsElement.textContent = String(attempts);
+
+    if (firstCard.value === secondCard.value) {
+        firstCard.matched = true;
+        secondCard.matched = true;
+
+        pairsFound++;
+        pairsFoundElement.textContent = pairsFound + "/" + SYMBOLS.length;
+
+        firstCard = null;
+        secondCard = null;
+
+        renderBoard();
+
+        if (pairsFound === SYMBOLS.length) finishGame();
+        return;
+    }
+
+    isLocked = true;
+    firstCard.wrong = true;
+    secondCard.wrong = true;
+    renderBoard();
+
+    mismatchTimeout = setTimeout(() => {
+        if (firstCard) {
+            firstCard.flipped = false;
+            firstCard.wrong = false;
+        }
+
+        if (secondCard) {
+            secondCard.flipped = false;
+            secondCard.wrong = false;
+        }
+
+        firstCard = null;
+        secondCard = null;
+        isLocked = false;
+        mismatchTimeout = null;
+
+        renderBoard();
+    }, 800);
+}
+
+function finishGame() {
+    gameFinished = true;
+
+    if (timerInterval) {
+        clearInterval(timerInterval);
+        timerInterval = null;
+    }
+
+    resultMessage.textContent =
+        "🏆 Все пары найдены! Попыток: " + attempts +
+        ". Время: " + timerElement.textContent;
+    renderEmojis(resultMessage);
+}
+
+function startNewGame() {
+    if (mismatchTimeout) clearTimeout(mismatchTimeout);
+    if (timerInterval) clearInterval(timerInterval);
+
+    mismatchTimeout = null;
+    timerInterval = null;
+    cards = createCards();
+    firstCard = null;
+    secondCard = null;
+    isLocked = false;
+    attempts = 0;
+    pairsFound = 0;
+    startedAt = null;
+    gameFinished = false;
+
+    attemptsElement.textContent = "0";
+    pairsFoundElement.textContent = "0/8";
+    timerElement.textContent = "00:00";
+    resultMessage.textContent = "";
+
+    renderBoard();
+}
+
+function reshuffleUnmatchedCards() {
+    if (isLocked) return;
+
+    const remaining = shuffleArray(cards.filter(card => !card.matched));
+    let position = 0;
+
+    cards = cards.map(card => card.matched ? card : remaining[position++]);
+    firstCard = null;
+    secondCard = null;
+    renderBoard();
+}
+
+document.getElementById("restartButton").addEventListener("click", startNewGame);
+document.getElementById("shuffleButton").addEventListener("click", reshuffleUnmatchedCards);
+
+const input = document.getElementById("messageInput");
+const extensionPanel = document.getElementById("extensionPanel");
+const controlPanel = document.getElementById("controlPanel");
+const topMenu = document.getElementById("topMenu");
+
+function hideOverlayPanels(except = null) {
+    if (except !== extensionPanel) extensionPanel.hidden = true;
+    if (except !== controlPanel) controlPanel.hidden = true;
+    if (except !== topMenu) topMenu.hidden = true;
+}
+
+function showExtensionPanel() {
+    hideOverlayPanels(extensionPanel);
+    extensionPanel.hidden = false;
+}
+
+function showControlPanel() {
+    hideOverlayPanels(controlPanel);
+    controlPanel.hidden = false;
+}
+
+function updateCommandPanel() {
+    if (/(^|\s)\/[^\s]*$/.test(input.value)) {
+        showExtensionPanel();
+    } else {
+        extensionPanel.hidden = true;
+    }
+}
+
+input.addEventListener("input", () => {
+    input.style.height = "40px";
+    input.style.height = Math.min(input.scrollHeight, 110) + "px";
+    updateCommandPanel();
 });
 
-$("messageInput").addEventListener("keydown",event=>{
-  if(event.key==="Enter"&&!event.shiftKey){
-    event.preventDefault();
-    const value=$("messageInput").value.trim();
-    if(value)runCommand(value);
-    $("messageInput").value="";
-  }
+document.getElementById("closeExtensionPanel").addEventListener("click", () => {
+    extensionPanel.hidden = true;
 });
 
-$("sendButton").addEventListener("click",()=>{
-  const value=$("messageInput").value.trim();
-  if(value)runCommand(value);
-  $("messageInput").value="";
+document.getElementById("controlButton").addEventListener("click", () => {
+    controlPanel.hidden ? showControlPanel() : (controlPanel.hidden = true);
 });
 
-document.querySelectorAll("[data-command]").forEach(button=>{
-  button.addEventListener("click",()=>{
-    const command=button.dataset.command;
-    $("messageInput").value=command+" ";
-    $("extensionsPanel").hidden=true;
-    $("messageInput").focus();
-  });
+document.getElementById("topMenuButton").addEventListener("click", () => {
+    if (topMenu.hidden) {
+        hideOverlayPanels(topMenu);
+        topMenu.hidden = false;
+    } else {
+        topMenu.hidden = true;
+    }
 });
 
-document.querySelectorAll("[data-close]").forEach(button=>{
-  button.addEventListener("click",()=>{
-    $(button.dataset.close).hidden=true;
-    if(button.dataset.close==="controlsPanel")
-      $("controlsButton").classList.remove("active");
-  });
+document.querySelectorAll("[data-command]").forEach(button => {
+    button.addEventListener("click", () => {
+        input.value = button.dataset.command + " ";
+        input.focus();
+        input.setSelectionRange(input.value.length, input.value.length);
+        extensionPanel.hidden = false;
+        controlPanel.hidden = true;
+    });
 });
 
-$("controlsPanel").addEventListener("click",event=>{
-  const button=event.target.closest("[data-action]");
-  if(!button)return;
-  const action=button.dataset.action;
-  if(action==="restart"||action==="shuffle")resetGame();
-  if(action==="settings")showSettings();
-  if(action==="rules"){
-    openModal("Правила игры",
-      "1. Открой две карточки за ход.<br>2. Если символы одинаковые, пара останется открытой и подсветится зелёным.<br>3. Если символы разные, карточки подсветятся красным и через короткое время перевернутся обратно.<br>4. Найди все восемь пар.",
-      [{label:"Понятно",primary:true,run:closeModal}]);
-  }
+const modalBackdrop = document.getElementById("modalBackdrop");
+const modalTitle = document.getElementById("modalTitle");
+const modalContent = document.getElementById("modalContent");
+
+function openModal(title, html) {
+    modalTitle.textContent = title;
+    modalContent.innerHTML = html;
+    modalBackdrop.hidden = false;
+    hideOverlayPanels();
+    renderEmojis(modalContent);
+}
+
+function closeModal() {
+    modalBackdrop.hidden = true;
+}
+
+document.getElementById("modalClose").addEventListener("click", closeModal);
+document.getElementById("modalOk").addEventListener("click", closeModal);
+
+modalBackdrop.addEventListener("click", event => {
+    if (event.target === modalBackdrop) closeModal();
 });
 
-$("topMenu").addEventListener("click",event=>{
-  const button=event.target.closest("[data-menu]");
-  if(!button)return;
-  const action=button.dataset.menu;
-  if(action==="settings"){showSettings();return}
-  if(action==="shortcut"){
-    openModal("Создать ярлык",
-      "Попробуйте установить приложение через меню браузера: «Установить приложение» или «Добавить на главный экран». Для полноценного ярлыка в стиле Telegram понадобится PWA-манифест и сервис-воркер.",
-      [{label:"Закрыть",primary:true,run:closeModal}]);
-  }
-  if(action==="about"){
-    openModal("О игре",
-      "Memory Game — игра на поиск одинаковых карточек. Совпавшие пары остаются зелёными, несовпавшие подсвечиваются красным и автоматически закрываются.",
-      [{label:"Начать заново",primary:true,run:resetGame},{label:"Закрыть",run:closeModal}]);
-  }
-  if(action==="ratings"){
-    const best=loadBest();
-    openModal("Рейтинги",
-      best?`Лучший результат в этом браузере: ${best} ходов.`:
-      "Рекорд пока не установлен. Завершите игру, чтобы записать лучший результат.",
-      [{label:"Закрыть",primary:true,run:closeModal}]);
-  }
-  if(action==="friends"){
-    openModal("Друзья","Список друзей можно подключить после добавления серверной части и профилей пользователей.",[{label:"Закрыть",primary:true,run:closeModal}]);
-  }
-  if(action==="chats"){
-    openModal("Чаты","Для обмена сообщениями между пользователями понадобится сервер и система авторизации.",[{label:"Закрыть",primary:true,run:closeModal}]);
-  }
+document.addEventListener("keydown", event => {
+    if (event.key === "Escape") {
+        closeModal();
+        hideOverlayPanels();
+    }
 });
 
-$("modalClose").addEventListener("click",closeModal);
-$("modalOverlay").addEventListener("click",event=>{
-  if(event.target===$("modalOverlay"))closeModal();
+function showAbout() {
+    openModal("📖 Об игре", `
+        <p>🃏 Открывай по две карточки за ход.</p>
+        <p>❌ Ошибочная пара подсветится красным и закроется через 800 мс.</p>
+        <p>✅ Совпавшие карточки засветятся зелёным и подпрыгнут.</p>
+        <p>🔄 Не найденные карточки можно переворачивать повторно.</p>
+    `);
+}
+
+document.querySelectorAll("[data-action]").forEach(button => {
+    button.addEventListener("click", () => {
+        const action = button.dataset.action;
+        topMenu.hidden = true;
+
+        if (action === "about") showAbout();
+
+        if (action === "ratings") {
+            openModal("🏆 Результат", `
+                <p>🎯 Попытки: <b>${attempts}</b></p>
+                <p>💎 Найдено пар: <b>${pairsFound}/8</b></p>
+                <p>⏱️ Время: <b>${timerElement.textContent}</b></p>
+                <p>Общий рейтинг игроков потребует сервера.</p>
+            `);
+        }
+
+        if (action === "settings") {
+            openModal("⚙️ Настройки", `
+                <p>Графические эмодзи загружаются из библиотеки Twemoji.</p>
+                <p>Для работы требуется интернет-соединение.</p>
+            `);
+        }
+
+        if (action === "friends") {
+            openModal("👥 Друзья", "<p>Для совместной игры и приглашений потребуется сервер.</p>");
+        }
+
+        if (action === "chats") {
+            openModal("💬 Чаты", "<p>Поле ввода поддерживает локальные демонстрационные сообщения.</p>");
+        }
+
+        if (action === "shortcut") {
+            openModal("📲 Создать ярлык", `
+                <p>На компьютере открой меню браузера и выбери создание ярлыка или установку приложения, если доступно.</p>
+                <p>На телефоне используй «Добавить на главный экран».</p>
+            `);
+        }
+    });
 });
 
-document.addEventListener("click",event=>{
-  if(!event.target.closest("#topMenu")&&!event.target.closest("#topMenuButton")){
-    $("topMenu").hidden=true;
-  }
-  if(!event.target.closest("#extensionsPanel")&&
-     !event.target.closest("#messageInput")&&
-     !event.target.closest("#sendButton")&&
-     !event.target.closest("[data-command]")){
-    $("extensionsPanel").hidden=true;
-  }
-  if(!event.target.closest("#controlsPanel")&&
-     !event.target.closest("#controlsButton")&&
-     !event.target.closest("[data-action]")){
-    $("controlsPanel").hidden=true;
-    $("controlsButton").classList.remove("active");
-  }
+document.querySelectorAll("[data-control]").forEach(button => {
+    button.addEventListener("click", () => {
+        const action = button.dataset.control;
+        controlPanel.hidden = true;
+
+        if (action === "restart") startNewGame();
+        if (action === "shuffle") reshuffleUnmatchedCards();
+        if (action === "extensions") showExtensionPanel();
+        if (action === "about") showAbout();
+    });
 });
 
-document.addEventListener("keydown",event=>{
-  if(event.key==="Escape"){
-    closePanels();
-    closeModal();
-  }
+const sentMessages = [];
+
+function sendMessage() {
+    const message = input.value.trim();
+    if (!message) return;
+
+    if (message === "/game") {
+        startNewGame();
+    } else if (message === "/help") {
+        showAbout();
+    } else {
+        sentMessages.push(message);
+        // Сообщения хранятся в памяти текущей вкладки.
+    }
+
+    input.value = "";
+    input.style.height = "40px";
+    hideOverlayPanels();
+}
+
+document.getElementById("sendButton").addEventListener("click", sendMessage);
+
+input.addEventListener("keydown", event => {
+    if (event.key === "Enter" && !event.shiftKey) {
+        event.preventDefault();
+        sendMessage();
+    }
 });
 
-createGame();
+document.addEventListener("click", event => {
+    const onTop = topMenu.contains(event.target) ||
+        document.getElementById("topMenuButton").contains(event.target);
+
+    const onControl = controlPanel.contains(event.target) ||
+        document.getElementById("controlButton").contains(event.target);
+
+    const onExtension = extensionPanel.contains(event.target);
+
+    if (!onTop) topMenu.hidden = true;
+    if (!onControl) controlPanel.hidden = true;
+
+    if (!onExtension && !input.contains(event.target) &&
+        !/(^|\s)\/[^\s]*$/.test(input.value)) {
+        extensionPanel.hidden = true;
+    }
+});
+
+startNewGame();
 </script>
 </body>
 </html>
