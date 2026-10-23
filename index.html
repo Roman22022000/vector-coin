@@ -1,0 +1,878 @@
+
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#17212b">
+<title>Telegram Game — Memory</title>
+<style>
+:root{
+  --bg:#17212b;
+  --panel:#212e3a;
+  --panel2:#182533;
+  --hover:#2b3b4b;
+  --text:#f5f7fa;
+  --muted:#9eafbf;
+  --line:#30404e;
+  --blue:#3390ec;
+  --green:#35c875;
+  --red:#f05e68;
+}
+*{box-sizing:border-box}
+html,body{
+  width:100%;height:100%;margin:0;
+  font-family:Arial,"Helvetica Neue",sans-serif;
+  background:var(--bg);color:var(--text);
+}
+body{overflow:hidden}
+button,input{font:inherit}
+button{color:inherit;cursor:pointer}
+button:focus-visible,input:focus-visible{
+  outline:2px solid var(--blue);outline-offset:2px
+}
+button:disabled{cursor:default}
+[hidden]{display:none!important}
+svg{width:21px;height:21px;display:block;flex-shrink:0}
+.app{
+  position:relative;isolation:isolate;
+  width:100%;height:100%;height:100dvh;
+  overflow:hidden;
+  background-color:var(--bg);
+  background-image:var(--wallpaper,none);
+  background-size:cover;background-position:center;
+}
+.workspace{
+  position:absolute;inset:0;
+  overflow:auto;overscroll-behavior:contain;
+  padding:16px 12px 105px;
+  scrollbar-width:thin;
+  scrollbar-color:var(--line) transparent;
+}
+.game{
+  width:min(100%,540px);
+  margin:0 auto;
+}
+.game-head{
+  display:flex;align-items:center;justify-content:space-between;
+  gap:12px;margin:0 0 15px;
+}
+.game-title{font-size:19px;font-weight:600}
+.game-subtitle{font-size:12px;color:var(--muted);margin-top:5px}
+.round-btn{
+  display:grid;place-items:center;
+  width:42px;height:42px;flex-shrink:0;
+  border:0;border-radius:50%;background:var(--panel);
+}
+.round-btn:hover{background:var(--hover)}
+.dots{font-size:25px;letter-spacing:1px;line-height:1}
+.stats{
+  display:grid;grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:8px;margin-bottom:15px;
+}
+.stat{
+  min-width:0;padding:11px 8px;text-align:center;
+  background:#212e3ad9;border:1px solid var(--line);
+  border-radius:12px;
+}
+.stat-number{font-size:19px;font-weight:600}
+.stat-label{font-size:11px;color:var(--muted);margin-top:5px}
+.game-tools{
+  display:flex;align-items:center;justify-content:space-between;
+  gap:8px;margin-bottom:12px;
+}
+.small-button{
+  min-height:36px;padding:8px 12px;
+  border:1px solid var(--line);border-radius:10px;
+  background:var(--panel);
+}
+.small-button:hover{background:var(--hover)}
+.memory-grid{
+  display:grid;grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:9px;
+}
+.memory-card{
+  position:relative;aspect-ratio:0.83;
+  min-width:0;padding:0;overflow:hidden;
+  border:1px solid #405363;border-radius:12px;
+  background:linear-gradient(145deg,#253849,#1a2836);
+  transition:border-color .16s,background .16s,transform .16s;
+  perspective:600px;
+}
+.memory-card:hover:not(:disabled){border-color:#6687a0}
+.memory-card:active:not(:disabled){transform:scale(.97)}
+.card-inner{
+  position:absolute;inset:0;
+  display:grid;place-items:center;
+  transition:transform .24s;
+}
+.card-back{
+  display:grid;place-items:center;
+  width:39px;height:39px;border-radius:12px;
+  background:#ffffff08;color:#63839d;
+  font-size:25px;font-weight:300;
+}
+.card-front{
+  display:none;position:absolute;inset:0;
+  place-items:center;font-size:clamp(24px,7vw,40px);
+  background:#2a3c4d;
+}
+.memory-card.flipped .card-front,
+.memory-card.matched .card-front{display:grid}
+.memory-card.flipped .card-back,
+.memory-card.matched .card-back{display:none}
+.memory-card.matched{
+  background:#153d30;border:2px solid var(--green);
+  box-shadow:inset 0 0 0 1px #35c87530;
+}
+.memory-card.matched .card-front{background:#153d30}
+.memory-card.wrong{
+  background:#48262d;border:2px solid var(--red);
+  animation:shake .22s linear;
+}
+.memory-card.wrong .card-front{background:#48262d}
+@keyframes shake{
+  0%,100%{transform:translateX(0)}
+  30%{transform:translateX(-3px)}
+  70%{transform:translateX(3px)}
+}
+.game-status{
+  text-align:center;color:var(--muted);
+  font-size:12px;min-height:18px;margin:13px 0 0;
+}
+.composer{
+  position:absolute;z-index:20;
+  left:0;right:0;bottom:0;
+  display:flex;align-items:center;gap:5px;
+  min-height:65px;
+  padding:8px 10px calc(8px + env(safe-area-inset-bottom));
+  background:linear-gradient(to bottom,transparent 0%,var(--bg) 22%);
+}
+.composer-inner{
+  display:flex;align-items:center;gap:4px;
+  width:min(100%,760px);min-height:48px;
+  margin:0 auto;padding:4px;
+  border:1px solid var(--line);
+  border-radius:28px;
+  background:var(--panel);
+  box-shadow:0 2px 12px #00012;
+}
+.icon-btn{
+  display:grid;place-items:center;
+  width:39px;height:39px;min-width:39px;
+  border:0;border-radius:50%;
+  color:var(--muted);background:transparent;
+}
+.icon-btn:hover,.icon-btn.active{background:var(--hover);color:var(--text)}
+.message-input{
+  width:100%;min-width:0;height:38px;
+  padding:10px 5px;border:0;outline:0;
+  resize:none;overflow:hidden;
+  color:var(--text);background:transparent;
+  font-size:15px;
+}
+.message-input::placeholder{color:var(--muted)}
+.send-btn{color:var(--blue)}
+.send-btn:hover{color:#65b2ff}
+
+/* Плавающие панели. Они не участвуют в потоке и не двигают игру. */
+.floating-panel{
+  position:absolute;z-index:30;
+  left:10px;right:10px;bottom:calc(73px + env(safe-area-inset-bottom));
+  width:auto;max-width:760px;margin:0 auto;
+  border:1px solid var(--line);border-radius:15px;
+  background:var(--panel);
+  box-shadow:0 12px 38px #0006;
+  overflow:hidden;
+  animation:panelIn .13s ease-out;
+}
+@keyframes panelIn{
+  from{opacity:0;transform:translateY(5px)}
+  to{opacity:1;transform:translateY(0)}
+}
+.panel-heading{
+  display:flex;align-items:center;justify-content:space-between;
+  gap:12px;padding:12px 14px;
+  border-bottom:1px solid var(--line);
+}
+.panel-heading strong{font-size:14px;font-weight:600}
+.panel-close{
+  display:grid;place-items:center;width:30px;height:30px;
+  border:0;border-radius:50%;background:transparent;color:var(--muted);
+}
+.panel-close:hover{background:var(--hover);color:var(--text)}
+.extension-strip{
+  display:flex;gap:9px;overflow-x:auto;
+  padding:12px;
+  scrollbar-width:thin;scrollbar-color:var(--line) transparent;
+  overscroll-behavior-x:contain;
+}
+.extension-tile{
+  display:flex;flex-direction:column;align-items:center;
+  justify-content:center;gap:8px;
+  width:90px;min-width:90px;height:87px;
+  padding:8px;border:1px solid var(--line);
+  border-radius:12px;background:var(--panel2);
+  color:var(--text);
+}
+.extension-tile:hover{background:var(--hover);border-color:#50687c}
+.extension-tile svg{width:25px;height:25px;color:var(--blue)}
+.extension-tile span{
+  font-size:11px;text-align:center;line-height:1.2;
+  overflow-wrap:anywhere;
+}
+.commands-hint{
+  padding:0 13px 11px;color:var(--muted);font-size:11px;
+}
+.menu-panel{
+  position:absolute;z-index:40;
+  top:12px;right:12px;
+  width:min(300px,calc(100vw - 24px));
+  max-height:calc(100% - 24px);
+  overflow:auto;padding:7px;
+  border:1px solid var(--line);border-radius:15px;
+  background:var(--panel);box-shadow:0 12px 40px #0007;
+}
+.menu-item{
+  display:flex;align-items:center;gap:12px;
+  width:100%;min-height:45px;padding:10px;
+  border:0;border-radius:9px;text-align:left;
+  background:transparent;color:var(--text);
+}
+.menu-item svg{color:var(--muted)}
+.menu-item:hover{background:var(--hover)}
+.menu-divider{height:1px;background:var(--line);margin:6px 4px}
+.menu-label{padding:9px 10px 5px;font-size:10px;color:var(--muted);letter-spacing:.7px}
+.control-grid{
+  display:grid;grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:8px;padding:12px;
+}
+.control-tile{
+  display:flex;flex-direction:column;align-items:center;
+  justify-content:center;gap:8px;min-height:76px;
+  padding:8px 3px;border:1px solid var(--line);
+  border-radius:11px;background:var(--panel2);
+}
+.control-tile:hover{background:var(--hover)}
+.control-tile svg{color:var(--blue)}
+.control-tile span{font-size:10px;text-align:center;line-height:1.2}
+.overlay{
+  position:absolute;z-index:50;inset:0;
+  display:grid;place-items:center;padding:14px;
+  background:#0009;
+}
+.modal{
+  width:min(100%,400px);max-height:85%;
+  overflow:auto;border:1px solid var(--line);
+  border-radius:15px;background:var(--panel);
+  box-shadow:0 15px 55px #0008;
+}
+.modal-head{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:14px;border-bottom:1px solid var(--line);
+}
+.modal-head strong{font-size:16px}
+.modal-body{padding:15px;line-height:1.6}
+.modal-actions{display:flex;justify-content:flex-end;gap:8px;padding:0 15px 15px}
+.field{
+  width:100%;padding:10px 12px;
+  border:1px solid var(--line);border-radius:9px;
+  background:var(--bg);color:var(--text);
+}
+.field-label{display:block;color:var(--muted);font-size:12px;margin:12px 0 6px}
+.primary-button{
+  min-height:38px;padding:9px 14px;
+  border:0;border-radius:9px;background:var(--blue);color:white;
+}
+.secondary-button{
+  min-height:38px;padding:9px 14px;
+  border:1px solid var(--line);border-radius:9px;
+  background:var(--panel2);
+}
+.setting-row{
+  display:flex;align-items:center;justify-content:space-between;
+  gap:12px;padding:10px 0;
+}
+.setting-row input[type=checkbox]{width:18px;height:18px;accent-color:var(--blue)}
+@media(min-width:650px){
+  .workspace{padding-top:22px}
+  .memory-grid{gap:12px}
+  .memory-card{aspect-ratio:1}
+  .composer{padding-left:18px;padding-right:18px}
+}
+@media(max-width:370px){
+  .workspace{padding-left:8px;padding-right:8px}
+  .memory-grid{gap:6px}
+  .memory-card{border-radius:9px}
+  .composer{padding-left:5px;padding-right:5px}
+  .icon-btn{width:35px;min-width:35px}
+  .control-grid{gap:5px;padding:8px}
+}
+</style>
+</head>
+<body>
+<div class="app" id="app">
+
+<svg aria-hidden="true" style="position:absolute;width:0;height:0;overflow:hidden">
+<symbol id="i-arrows" viewBox="0 0 24 24"><path d="M4 8h15m-4-4 4 4-4 4M20 16H5m4-4-4 4 4 4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+<symbol id="i-send" viewBox="0 0 24 24"><path d="m3 11 18-8-7.5 18-3-7L3 11Zm7.5 3L21 3" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></symbol>
+<symbol id="i-game" viewBox="0 0 24 24"><path d="M7 8h10a4 4 0 0 1 3.8 5.3l-1.3 4a2 2 0 0 1-3.2.9L13.5 16h-3l-2.8 2.2a2 2 0 0 1-3.2-.9l-1.3-4A4 4 0 0 1 7 8Z" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M8 10v4m-2-2h4m5-1h.1m2 3h.1" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></symbol>
+<symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.5" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M4.5 20c.5-4 3.2-6 7.5-6s7 2 7.5 6" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></symbol>
+<symbol id="i-users" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M3 20c0-3.3 2.1-5 6-5s6 1.7 6 5M16 5.5a3 3 0 0 1 0 5.8M18 15c2 .6 3 2.1 3 4.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
+<symbol id="i-message" viewBox="0 0 24 24"><path d="M20 11.5a7.5 7.5 0 0 1-8 7.5 9 9 0 0 1-3.5-.7L4 20l1.4-4A7.3 7.3 0 0 1 4 11.5 7.5 7.5 0 0 1 12 4a7.5 7.5 0 0 1 8 7.5Z" fill="none" stroke="currentColor" stroke-width="1.7"/></symbol>
+<symbol id="i-settings" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="m19 13.5 2-1.5-2-1.5-.5-2.1 1-2.3-2.5-1-1.8 1.5h-2.4L11 3 9 5l-2.4-.2-1.2 2.4.8 2-1 2L3 12.5l1.5 2.2-.2 2.2 2.3 1.1 2-.8 2 1 1.2 2.2 2.2-1.5 2.2.2 1.1-2.3-.8-2Z" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></symbol>
+<symbol id="i-trophy" viewBox="0 0 24 24"><path d="M8 4h8v5a4 4 0 0 1-8 0V4ZM8 6H4v2a4 4 0 0 0 4 4m8-6h4v2a4 4 0 0 1-4 4m-4 0v5m-4 3h8m-7-3h6" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+<symbol id="i-link" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.1 0l3-3A5 5 0 0 0 13 2.9l-1.7 1.7m2.7 6.4a5 5 0 0 0-7.1 0l-3 3A5 5 0 0 0 11 21.1l1.7-1.7" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></symbol>
+<symbol id="i-image" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="3" fill="none" stroke="currentColor" stroke-width="1.7"/><circle cx="8.5" cy="8.5" r="1.5" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="m4 17 5-5 4 4 3-3 4 5" fill="none" stroke="currentColor" stroke-width="1.7"/></symbol>
+<symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20 7v5h-5M4 17v-5h5m-4-2a7 7 0 0 1 12-3l3 5M4 12l3 5a7 7 0 0 0 12-3" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+<symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M12 11v5m0-8h.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+<symbol id="i-star" viewBox="0 0 24 24"><path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2-5.6-3-5.6 3 1.1-6.2L3 9.6l6.2-.9L12 3Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></symbol>
+<symbol id="i-chat" viewBox="0 0 24 24"><path d="M4 5h16v12H9l-5 4V5Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></symbol>
+</svg>
+
+<main class="workspace" id="workspace">
+  <section class="game">
+    <header class="game-head">
+      <div>
+        <div class="game-title">Memory Game</div>
+        <div class="game-subtitle">Найди одинаковые карточки</div>
+      </div>
+      <button class="round-btn" id="topMenuButton" aria-label="Открыть меню" title="Меню">
+        <span class="dots">⋮</span>
+      </button>
+    </header>
+
+    <div class="stats">
+      <div class="stat"><div class="stat-number" id="moves">0</div><div class="stat-label">Ходы</div></div>
+      <div class="stat"><div class="stat-number" id="pairs">0/8</div><div class="stat-label">Пары</div></div>
+      <div class="stat"><div class="stat-number" id="timer">00:00</div><div class="stat-label">Время</div></div>
+    </div>
+
+    <div class="game-tools">
+      <span class="game-subtitle" id="gameStatus">Открой две карточки</span>
+      <button class="small-button" id="restartButton">Новая игра ↻</button>
+    </div>
+
+    <div class="memory-grid" id="memoryGrid" aria-label="Игровые карточки"></div>
+    <div class="game-status" id="resultStatus"></div>
+  </section>
+</main>
+
+<!-- Команды / располагаются поверх игрового поля -->
+<section class="floating-panel" id="extensionsPanel" hidden>
+  <div class="panel-heading">
+    <strong>Расширения</strong>
+    <button class="panel-close" data-close="extensionsPanel" aria-label="Закрыть">×</button>
+  </div>
+  <div class="extension-strip">
+    <button class="extension-tile" data-command="/ai_chat">
+      <svg><use href="#i-message"/></svg><span>AI Chat</span>
+    </button>
+    <button class="extension-tile" data-command="/content">
+      <svg><use href="#i-image"/></svg><span>Контент</span>
+    </button>
+    <button class="extension-tile" data-command="/card">
+      <svg><use href="#i-game"/></svg><span>Карточка</span>
+    </button>
+    <button class="extension-tile" data-command="/requests">
+      <svg><use href="#i-users"/></svg><span>Заявки</span>
+    </button>
+    <button class="extension-tile" data-command="/ads">
+      <svg><use href="#i-star"/></svg><span>Реклама</span>
+    </button>
+    <button class="extension-tile" data-command="/game">
+      <svg><use href="#i-trophy"/></svg><span>Игры</span>
+    </button>
+    <button class="extension-tile" data-command="/chats">
+      <svg><use href="#i-chat"/></svg><span>Чаты</span>
+    </button>
+  </div>
+  <div class="commands-hint">Выберите расширение или введите команду вручную.</div>
+</section>
+
+<!-- Панель управления по кнопке со стрелками -->
+<section class="floating-panel" id="controlsPanel" hidden>
+  <div class="panel-heading">
+    <strong>Панель управления</strong>
+    <button class="panel-close" data-close="controlsPanel" aria-label="Закрыть">×</button>
+  </div>
+  <div class="control-grid">
+    <button class="control-tile" data-action="restart"><svg><use href="#i-refresh"/></svg><span>Перезапуск</span></button>
+    <button class="control-tile" data-action="shuffle"><svg><use href="#i-game"/></svg><span>Перемешать</span></button>
+    <button class="control-tile" data-action="rules"><svg><use href="#i-info"/></svg><span>Правила</span></button>
+    <button class="control-tile" data-action="settings"><svg><use href="#i-settings"/></svg><span>Настройки</span></button>
+  </div>
+</section>
+
+<!-- Меню трёх точек -->
+<nav class="menu-panel" id="topMenu" hidden>
+  <div class="menu-label">ПРИЛОЖЕНИЕ</div>
+  <button class="menu-item" data-menu="shortcut"><svg><use href="#i-link"/></svg><span>Создать ярлык</span></button>
+  <button class="menu-item" data-menu="about"><svg><use href="#i-info"/></svg><span>О игре</span></button>
+  <button class="menu-item" data-menu="ratings"><svg><use href="#i-trophy"/></svg><span>Рейтинги</span></button>
+  <button class="menu-item" data-menu="settings"><svg><use href="#i-settings"/></svg><span>Настройки</span></button>
+  <div class="menu-divider"></div>
+  <button class="menu-item" data-menu="friends"><svg><use href="#i-users"/></svg><span>Друзья</span></button>
+  <button class="menu-item" data-menu="chats"><svg><use href="#i-chat"/></svg><span>Чаты</span></button>
+</nav>
+
+<!-- Нижняя панель ввода поверх игры -->
+<footer class="composer">
+  <div class="composer-inner">
+    <button class="icon-btn" id="controlsButton" aria-label="Панель управления" title="Панель управления">
+      <svg><use href="#i-arrows"/></svg>
+    </button>
+    <textarea class="message-input" id="messageInput" rows="1" placeholder="Сообщение или /команда" aria-label="Ввод команды"></textarea>
+    <button class="icon-btn send-btn" id="sendButton" aria-label="Выполнить команду" title="Выполнить">
+      <svg><use href="#i-send"/></svg>
+    </button>
+  </div>
+</footer>
+
+<div class="overlay" id="modalOverlay" hidden>
+  <section class="modal" role="dialog" aria-modal="true">
+    <header class="modal-head">
+      <strong id="modalTitle">Информация</strong>
+      <button class="panel-close" id="modalClose" aria-label="Закрыть">×</button>
+    </header>
+    <div class="modal-body" id="modalBody"></div>
+    <div class="modal-actions" id="modalActions"></div>
+  </section>
+</div>
+</div>
+
+<script>
+"use strict";
+
+const $ = id => document.getElementById(id);
+const icons = ["◆","●","▲","★","♥","✦","⬟","☀"];
+const STORAGE_KEY = "memory_game_telegram_v1";
+
+let cards = [];
+let firstCard = null;
+let secondCard = null;
+let lockBoard = false;
+let moves = 0;
+let foundPairs = 0;
+let seconds = 0;
+let timerInterval = null;
+let started = false;
+let mismatchTimeout = null;
+
+function shuffle(array){
+  for(let i=array.length-1;i>0;i--){
+    const j=Math.floor(Math.random()*(i+1));
+    [array[i],array[j]]=[array[j],array[i]];
+  }
+  return array;
+}
+
+function loadBest(){
+  try{return Number(localStorage.getItem(STORAGE_KEY+"_best"))||0}
+  catch{return 0}
+}
+
+function saveBest(value){
+  try{localStorage.setItem(STORAGE_KEY+"_best",String(value))}
+  catch{}
+}
+
+function startTimer(){
+  if(started)return;
+  started=true;
+  timerInterval=setInterval(()=>{
+    seconds++;
+    updateStats();
+  },1000);
+}
+
+function stopTimer(){
+  clearInterval(timerInterval);
+  timerInterval=null;
+}
+
+function formatTime(value){
+  const m=String(Math.floor(value/60)).padStart(2,"0");
+  const s=String(value%60).padStart(2,"0");
+  return m+":"+s;
+}
+
+function updateStats(){
+  $("moves").textContent=moves;
+  $("pairs").textContent=foundPairs+"/8";
+  $("timer").textContent=formatTime(seconds);
+}
+
+function createGame(){
+  stopTimer();
+  clearTimeout(mismatchTimeout);
+  cards=[];
+  firstCard=null;
+  secondCard=null;
+  lockBoard=false;
+  moves=0;
+  foundPairs=0;
+  seconds=0;
+  started=false;
+  $("gameStatus").textContent="Открой две карточки";
+  $("resultStatus").textContent="";
+  updateStats();
+
+  const deck=shuffle([...icons,...icons].map((symbol,index)=>({
+    id:index,symbol,flipped:false,matched:false,wrong:false
+  })));
+  cards=deck;
+  const grid=$("memoryGrid");
+  grid.innerHTML="";
+
+  cards.forEach(card=>{
+    const button=document.createElement("button");
+    button.className="memory-card";
+    button.type="button";
+    button.dataset.id=card.id;
+    button.setAttribute("aria-label","Закрытая карточка");
+    button.innerHTML=`
+      <span class="card-inner">
+        <span class="card-back">?</span>
+        <span class="card-front">${card.symbol}</span>
+      </span>`;
+    button.addEventListener("click",()=>flipCard(card.id));
+    grid.appendChild(button);
+  });
+}
+
+function cardElement(id){
+  return $("memoryGrid").querySelector('[data-id="'+id+'"]');
+}
+
+function renderCard(card){
+  const element=cardElement(card.id);
+  if(!element)return;
+  element.classList.toggle("flipped",card.flipped);
+  element.classList.toggle("matched",card.matched);
+  element.classList.toggle("wrong",card.wrong);
+  element.disabled=card.matched||lockBoard;
+  element.setAttribute("aria-label",
+    card.matched?"Найденная пара":
+    card.flipped?"Открытая карточка":"Закрытая карточка");
+}
+
+function flipCard(id){
+  if(lockBoard)return;
+  const card=cards.find(item=>item.id===id);
+  if(!card||card.matched||card.flipped)return;
+
+  startTimer();
+  card.flipped=true;
+  card.wrong=false;
+  renderCard(card);
+
+  if(!firstCard){
+    firstCard=card;
+    return;
+  }
+
+  secondCard=card;
+  moves++;
+  updateStats();
+
+  if(firstCard.symbol===secondCard.symbol){
+    firstCard.matched=true;
+    secondCard.matched=true;
+    firstCard.flipped=true;
+    secondCard.flipped=true;
+    renderCard(firstCard);
+    renderCard(secondCard);
+
+    foundPairs++;
+    firstCard=null;
+    secondCard=null;
+    updateStats();
+
+    $("gameStatus").textContent="Пара найдена";
+    if(foundPairs===8)finishGame();
+    else $("gameStatus").textContent="Продолжай искать пары";
+    return;
+  }
+
+  // Несовпадение: красная подсветка, затем автоматический переворот.
+  lockBoard=true;
+  firstCard.wrong=true;
+  secondCard.wrong=true;
+  renderCard(firstCard);
+  renderCard(secondCard);
+  $("gameStatus").textContent="Не совпали";
+
+  mismatchTimeout=setTimeout(()=>{
+    firstCard.flipped=false;
+    secondCard.flipped=false;
+    firstCard.wrong=false;
+    secondCard.wrong=false;
+    renderCard(firstCard);
+    renderCard(secondCard);
+    firstCard=null;
+    secondCard=null;
+    lockBoard=false;
+    $("gameStatus").textContent="Попробуй ещё раз";
+  },850);
+}
+
+function finishGame(){
+  stopTimer();
+  const best=loadBest();
+  if(best===0||moves<best)saveBest(moves);
+  $("gameStatus").textContent="Все пары найдены";
+  $("resultStatus").textContent=
+    "Победа · "+moves+" ходов · "+formatTime(seconds);
+  $("gameStatus").style.color="var(--green)";
+}
+
+function resetGame(){
+  closePanels();
+  createGame();
+}
+
+function closePanels(){
+  $("extensionsPanel").hidden=true;
+  $("controlsPanel").hidden=true;
+  $("topMenu").hidden=true;
+  $("controlsButton").classList.remove("active");
+}
+
+function togglePanel(id){
+  const panel=$(id);
+  const wasOpen=!panel.hidden;
+  closePanels();
+  if(!wasOpen){
+    panel.hidden=false;
+    if(id==="controlsPanel")$("controlsButton").classList.add("active");
+  }
+}
+
+function openModal(title,body,actions=[]){
+  closePanels();
+  $("modalTitle").textContent=title;
+  $("modalBody").innerHTML=body;
+  $("modalActions").innerHTML="";
+  actions.forEach(action=>{
+    const button=document.createElement("button");
+    button.className=action.primary?"primary-button":"secondary-button";
+    button.textContent=action.label;
+    button.addEventListener("click",action.run);
+    $("modalActions").appendChild(button);
+  });
+  $("modalOverlay").hidden=false;
+}
+
+function closeModal(){
+  $("modalOverlay").hidden=true;
+}
+
+function showSettings(){
+  openModal("Настройки",`
+    <label class="field-label" for="accentColor">Цвет акцента</label>
+    <input class="field" type="color" id="accentColor" value="#3390ec">
+    <label class="field-label" for="backgroundColor">Цвет фона</label>
+    <input class="field" type="color" id="backgroundColor" value="#17212b">
+    <label class="field-label" for="wallpaperInput">Фоновое изображение</label>
+    <input class="field" type="file" id="wallpaperInput" accept="image/*">
+    <div class="setting-row">
+      <span>Показывать таймер</span>
+      <input type="checkbox" id="timerToggle" checked>
+    </div>
+  `,[
+    {label:"Сбросить фон",run:()=>{
+      $("app").style.removeProperty("--wallpaper");
+      document.documentElement.style.setProperty("--bg","#17212b");
+      document.documentElement.style.setProperty("--blue","#3390ec");
+      closeModal();
+    }},
+    {label:"Готово",primary:true,run:closeModal}
+  ]);
+
+  $("accentColor").addEventListener("input",e=>{
+    document.documentElement.style.setProperty("--blue",e.target.value);
+  });
+  $("backgroundColor").addEventListener("input",e=>{
+    document.documentElement.style.setProperty("--bg",e.target.value);
+  });
+  $("wallpaperInput").addEventListener("change",e=>{
+    const file=e.target.files[0];
+    if(!file||!file.type.startsWith("image/"))return;
+    if(file.size>3*1024*1024){
+      openModal("Изображение слишком большое",
+        "Выберите изображение размером до 3 МБ.",
+        [{label:"Закрыть",primary:true,run:closeModal}]);
+      return;
+    }
+    const reader=new FileReader();
+    reader.onload=()=>{
+      $("app").style.setProperty("--wallpaper",`url("${reader.result}")`);
+    };
+    reader.readAsDataURL(file);
+  });
+  $("timerToggle").addEventListener("change",e=>{
+    $("timer").parentElement.hidden=!e.target.checked;
+  });
+}
+
+function runCommand(command){
+  const cmd=command.trim().toLowerCase();
+  closePanels();
+  if(!cmd)return;
+
+  const actions={
+    "/game":()=>resetGame(),
+    "/restart":()=>resetGame(),
+    "/shuffle":()=>resetGame(),
+    "/controls":()=>togglePanel("controlsPanel"),
+    "/settings":()=>showSettings(),
+    "/ai_chat":()=>openModal("AI Chat","Интерфейс AI Chat подготовлен для подключения модели.",[{label:"Закрыть",primary:true,run:closeModal}]),
+    "/content":()=>openModal("Генерация контента","Раздел для генерации текста, изображений и других материалов.",[{label:"Закрыть",primary:true,run:closeModal}]),
+    "/card":()=>openModal("Создание карточки","Раздел создания пользовательских карточек.",[{label:"Закрыть",primary:true,run:closeModal}]),
+    "/requests":()=>openModal("Заявки","Здесь можно разместить входящие заявки.",[{label:"Закрыть",primary:true,run:closeModal}]),
+    "/ads":()=>openModal("Реклама","Раздел рекламных размещений.",[{label:"Закрыть",primary:true,run:closeModal}]),
+    "/chats":()=>openModal("Чаты","Сетевые чаты требуют серверной части.",[{label:"Закрыть",primary:true,run:closeModal}])
+  };
+
+  if(actions[cmd]){
+    actions[cmd]();
+  }else{
+    openModal("Команда не найдена",
+      "Неизвестная команда: "+escapeHTML(command)+
+      "<br><br>Доступно: /game, /restart, /shuffle, /settings, /ai_chat, /content, /card, /requests, /ads, /chats.",
+      [{label:"Закрыть",primary:true,run:closeModal}]);
+  }
+}
+
+function escapeHTML(value){
+  return String(value).replace(/[&<>"']/g,ch=>({
+    "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
+  })[ch]);
+}
+
+$("restartButton").addEventListener("click",resetGame);
+$("controlsButton").addEventListener("click",()=>togglePanel("controlsPanel"));
+$("topMenuButton").addEventListener("click",()=>togglePanel("topMenu"));
+
+$("messageInput").addEventListener("input",()=>{
+  const value=$("messageInput").value;
+  if(value.trim()==="/"){
+    $("topMenu").hidden=true;
+    $("controlsPanel").hidden=true;
+    $("controlsButton").classList.remove("active");
+    $("extensionsPanel").hidden=false;
+  }else if(!value.trim().startsWith("/")){
+    $("extensionsPanel").hidden=true;
+  }
+});
+
+$("messageInput").addEventListener("keydown",event=>{
+  if(event.key==="Enter"&&!event.shiftKey){
+    event.preventDefault();
+    const value=$("messageInput").value.trim();
+    if(value)runCommand(value);
+    $("messageInput").value="";
+  }
+});
+
+$("sendButton").addEventListener("click",()=>{
+  const value=$("messageInput").value.trim();
+  if(value)runCommand(value);
+  $("messageInput").value="";
+});
+
+document.querySelectorAll("[data-command]").forEach(button=>{
+  button.addEventListener("click",()=>{
+    const command=button.dataset.command;
+    $("messageInput").value=command+" ";
+    $("extensionsPanel").hidden=true;
+    $("messageInput").focus();
+  });
+});
+
+document.querySelectorAll("[data-close]").forEach(button=>{
+  button.addEventListener("click",()=>{
+    $(button.dataset.close).hidden=true;
+    if(button.dataset.close==="controlsPanel")
+      $("controlsButton").classList.remove("active");
+  });
+});
+
+$("controlsPanel").addEventListener("click",event=>{
+  const button=event.target.closest("[data-action]");
+  if(!button)return;
+  const action=button.dataset.action;
+  if(action==="restart"||action==="shuffle")resetGame();
+  if(action==="settings")showSettings();
+  if(action==="rules"){
+    openModal("Правила игры",
+      "1. Открой две карточки за ход.<br>2. Если символы одинаковые, пара останется открытой и подсветится зелёным.<br>3. Если символы разные, карточки подсветятся красным и через короткое время перевернутся обратно.<br>4. Найди все восемь пар.",
+      [{label:"Понятно",primary:true,run:closeModal}]);
+  }
+});
+
+$("topMenu").addEventListener("click",event=>{
+  const button=event.target.closest("[data-menu]");
+  if(!button)return;
+  const action=button.dataset.menu;
+  if(action==="settings"){showSettings();return}
+  if(action==="shortcut"){
+    openModal("Создать ярлык",
+      "Попробуйте установить приложение через меню браузера: «Установить приложение» или «Добавить на главный экран». Для полноценного ярлыка в стиле Telegram понадобится PWA-манифест и сервис-воркер.",
+      [{label:"Закрыть",primary:true,run:closeModal}]);
+  }
+  if(action==="about"){
+    openModal("О игре",
+      "Memory Game — игра на поиск одинаковых карточек. Совпавшие пары остаются зелёными, несовпавшие подсвечиваются красным и автоматически закрываются.",
+      [{label:"Начать заново",primary:true,run:resetGame},{label:"Закрыть",run:closeModal}]);
+  }
+  if(action==="ratings"){
+    const best=loadBest();
+    openModal("Рейтинги",
+      best?`Лучший результат в этом браузере: ${best} ходов.`:
+      "Рекорд пока не установлен. Завершите игру, чтобы записать лучший результат.",
+      [{label:"Закрыть",primary:true,run:closeModal}]);
+  }
+  if(action==="friends"){
+    openModal("Друзья","Список друзей можно подключить после добавления серверной части и профилей пользователей.",[{label:"Закрыть",primary:true,run:closeModal}]);
+  }
+  if(action==="chats"){
+    openModal("Чаты","Для обмена сообщениями между пользователями понадобится сервер и система авторизации.",[{label:"Закрыть",primary:true,run:closeModal}]);
+  }
+});
+
+$("modalClose").addEventListener("click",closeModal);
+$("modalOverlay").addEventListener("click",event=>{
+  if(event.target===$("modalOverlay"))closeModal();
+});
+
+document.addEventListener("click",event=>{
+  if(!event.target.closest("#topMenu")&&!event.target.closest("#topMenuButton")){
+    $("topMenu").hidden=true;
+  }
+  if(!event.target.closest("#extensionsPanel")&&
+     !event.target.closest("#messageInput")&&
+     !event.target.closest("#sendButton")&&
+     !event.target.closest("[data-command]")){
+    $("extensionsPanel").hidden=true;
+  }
+  if(!event.target.closest("#controlsPanel")&&
+     !event.target.closest("#controlsButton")&&
+     !event.target.closest("[data-action]")){
+    $("controlsPanel").hidden=true;
+    $("controlsButton").classList.remove("active");
+  }
+});
+
+document.addEventListener("keydown",event=>{
+  if(event.key==="Escape"){
+    closePanels();
+    closeModal();
+  }
+});
+
+createGame();
+</script>
+</body>
+</html>
